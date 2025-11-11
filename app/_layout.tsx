@@ -36,28 +36,28 @@ function ThemedApp() {
           name="main"
           options={{
             title: 'Продукты',
-            tabBarIcon: ({ color, size }) => <HomeIcon />,
+            tabBarIcon: () => <HomeIcon />,
           }}
         />
         <Tabs.Screen
           name="stats"
           options={{
             title: 'Статистика',
-            tabBarIcon: ({ color, size }) => <StatsIcon />,
+            tabBarIcon: () => <StatsIcon />,
           }}
         />
         <Tabs.Screen
           name="history"
           options={{
             title: 'История',
-            tabBarIcon: ({ color, size }) => <HistoryIcon />,
+            tabBarIcon: () => <HistoryIcon />,
           }}
         />
         <Tabs.Screen
           name="notification-settings"
           options={{
             title: 'Настройки',
-            tabBarIcon: ({ color, size }) => <SettingsIcon />,
+            tabBarIcon: () => <SettingsIcon />,
           }}
         />
         <Tabs.Screen
@@ -78,6 +78,11 @@ function ThemedApp() {
         />
         <Tabs.Screen
           name="modal"
+          options={{ href: null }}
+        />
+        {/* Добавьте этот маршрут */}
+        <Tabs.Screen
+          name="recipe-detail"
           options={{ href: null }}
         />
       </Tabs>

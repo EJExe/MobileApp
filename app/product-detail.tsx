@@ -3,6 +3,7 @@ import React from 'react';
 import { Product } from '../src/components/ProductForm';
 import { useApp } from '../src/context/AppContext';
 import { ProductDetailScreen } from '../src/screens/ProductDetailScreen';
+import { Recipe } from '../src/utils/RecipeDatabase'; // Добавьте этот импорт
 
 export default function ProductDetail() {
   const { deleteProduct, markProductAsUsed } = useApp();
@@ -11,15 +12,22 @@ export default function ProductDetail() {
   
   const product = JSON.parse(params.product as string) as Product;
 
-  // Обертки для функций с навигацией
   const handleMarkAsUsed = (id: string) => {
     markProductAsUsed(id);
-    router.replace('/main'); // Переход на главную после отметки как использованного
+    router.replace('/main');
   };
 
   const handleDelete = (id: string) => {
     deleteProduct(id);
-    router.replace('/main'); // Переход на главную после удаления
+    router.replace('/main');
+  };
+
+  const handleRecipeClick = (recipe: Recipe) => {
+    // Навигация на экран детализации рецепта
+    router.push({
+      pathname: '/recipe-detail' as any, // Используем any чтобы обойти проверку типов
+      params: { recipe: JSON.stringify(recipe) }
+    });
   };
 
   return (
@@ -28,6 +36,7 @@ export default function ProductDetail() {
       onBack={() => router.back()}
       onMarkAsUsed={handleMarkAsUsed}
       onDelete={handleDelete}
+      onRecipeClick={handleRecipeClick}
     />
   );
 }

@@ -24,7 +24,8 @@ interface ProductDetailScreenProps {
   onBack: () => void;
   onMarkAsUsed: (id: string) => void;
   onDelete: (id: string) => void;
-  onRecipeClick?: (recipe: Recipe) => void;
+  onRecipeClick: (recipe: Recipe) => void;
+  
 }
 
 export function ProductDetailScreen({ product, onBack, onMarkAsUsed, onDelete, onRecipeClick }: ProductDetailScreenProps) {
@@ -254,7 +255,7 @@ export function ProductDetailScreen({ product, onBack, onMarkAsUsed, onDelete, o
           </View>
 
           {/* Recipe Suggestions - only show if product is expiring soon */}
-          {shouldShowRecipes && recipeSuggestions.length > 0 && onRecipeClick && (
+          {shouldShowRecipes && recipeSuggestions.length > 0 && (
             <View style={styles.recipeWarning}>
               <Text style={styles.recipeWarningTitle}>⚠️ Срок годности подходит к концу!</Text>
               <Text style={styles.recipeWarningText}>

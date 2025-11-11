@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import { useApp } from '../src/context/AppContext';
 import { MainScreen } from '../src/screens/MainScreen';

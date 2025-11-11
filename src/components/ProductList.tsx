@@ -161,15 +161,15 @@ export function ProductList({ products, onDeleteProduct }: ProductListProps) {
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, styles.freshStat]}>
           <Text style={[styles.statNumber, styles.freshText]}>{statusCounts.fresh}</Text>
-          <Text style={[styles.statLabel, styles.freshText]}>Свежие продукты</Text>
+          <Text style={[styles.statLabel, styles.freshText]} numberOfLines={2}>Свежие продукты</Text>
         </View>
         <View style={[styles.statCard, styles.expiringStat]}>
           <Text style={[styles.statNumber, styles.expiringText]}>{statusCounts.expiring}</Text>
-          <Text style={[styles.statLabel, styles.expiringText]}>Истекают скоро</Text>
+          <Text style={[styles.statLabel, styles.expiringText]} numberOfLines={2}>Истекают скоро</Text>
         </View>
         <View style={[styles.statCard, styles.expiredStat]}>
           <Text style={[styles.statNumber, styles.expiredText]}>{statusCounts.expired}</Text>
-          <Text style={[styles.statLabel, styles.expiredText]}>Просроченные</Text>
+          <Text style={[styles.statLabel, styles.expiredText]} numberOfLines={2}>Просроченные</Text>
         </View>
       </View>
 
@@ -317,34 +317,45 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderRadius: 8,
     alignItems: 'center',
+    minHeight: 70,
+    justifyContent: 'center',
   },
   freshStat: {
     backgroundColor: '#dcfce7',
     borderWidth: 1,
     borderColor: '#bbf7d0',
+    minHeight: 70,
   },
   expiringStat: {
     backgroundColor: '#fef3c7',
     borderWidth: 1,
     borderColor: '#fde68a',
+    minHeight: 70,
   },
   expiredStat: {
     backgroundColor: '#fee2e2',
     borderWidth: 1,
     borderColor: '#fecaca',
+    minHeight: 70,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 12,
+    marginTop: 4,
+    width: '100%',
+    flexShrink: 1, 
+    flexWrap: 'wrap',
   },
   freshText: {
     color: '#166534',

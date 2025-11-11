@@ -246,7 +246,7 @@ export function MainScreen({ products, onAddProduct, onProductClick, onMarkAsUse
             style={[styles.filterTab, activeFilter === 'all' && styles.filterTabActive]}
             onPress={() => setActiveFilter('all')}
           >
-            <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
+            <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]} numberOfLines={1} ellipsizeMode="tail">
               Все ({counts.all})
             </Text>
           </TouchableOpacity>
@@ -254,15 +254,15 @@ export function MainScreen({ products, onAddProduct, onProductClick, onMarkAsUse
             style={[styles.filterTab, activeFilter === 'expiring' && styles.filterTabExpiring]}
             onPress={() => setActiveFilter('expiring')}
           >
-            <Text style={[styles.filterText, activeFilter === 'expiring' && styles.filterTextExpiring]}>
-              Скоро истекает ({counts.expiring})
+            <Text style={[styles.filterText, activeFilter === 'expiring' && styles.filterTextExpiring]} numberOfLines={1} ellipsizeMode="tail">
+              Скоро ({counts.expiring})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.filterTab, activeFilter === 'expired' && styles.filterTabExpired]}
             onPress={() => setActiveFilter('expired')}
           >
-            <Text style={[styles.filterText, activeFilter === 'expired' && styles.filterTextExpired]}>
+            <Text style={[styles.filterText, activeFilter === 'expired' && styles.filterTextExpired]} numberOfLines={1} ellipsizeMode="tail">
               Просрочено ({counts.expired})
             </Text>
           </TouchableOpacity>
@@ -339,11 +339,12 @@ const styles = StyleSheet.create({
   },
   filtersContent: {
     gap: 8,
+    
   },
   filterTab: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 12,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: 'white',
     marginRight: 8,
     shadowColor: '#000',
@@ -351,6 +352,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    minWidth: 100, 
+    maxWidth: 140,
+    minHeight: 50,
   },
   filterTabActive: {
     backgroundColor: '#3b82f6',
@@ -362,9 +366,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 13, 
     fontWeight: '500',
     color: '#6b7280',
+    textAlign: 'center', 
+    lineHeight: 16,
   },
   filterTextActive: {
     color: 'white',

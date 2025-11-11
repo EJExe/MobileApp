@@ -1,0 +1,177 @@
+// Пример API сервиса для интеграции с C# backend
+// Скопируйте этот файл в src/services/api.ts и настройте под ваши нужды
+
+import axios from 'axios';
+import { Platform } from 'react-native';
+
+// Определение базового URL API
+const getApiBaseUrl = () => {
+  if (__DEV__) {
+    // Для локальной разработки
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5000/api';  // Android эмулятор
+    } else {
+      return 'http://localhost:5000/api';  // iOS симулятор
+    }
+  }
+  // Для продакшена - замените на ваш реальный домен
+  return 'https://your-api-domain.com/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Создание axios инстанса
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
+});
+
+// Интерфейсы для типизации
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  purchaseDate?: string;
+  expirationDate: string;
+  price?: number;
+  archivedDate?: string;
+  archiveReason?: 'used' | 'expired';
+}
+
+export interface CreateProductDto {
+  name: string;
+  category: string;
+  purchaseDate?: string;
+  expirationDate: string;
+  price?: number;
+}
+
+// API сервис для работы с продуктами
+export const productApi = {
+  /**
+   * Получить все продукты
+   * @param archived - если true, вернет архивированные продукты, если false - активные, если undefined - все
+   */
+  getProducts: async (archived?: boolean): Promise<Product[]> => {
+    try {
+      const params = archived !== undefined ? { archived } : {};
+      const response = await api.get<Product[]>('/products', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Получить продукт по ID
+   */
+  getProduct: async (id: string): Promise<Product> => {
+    try {
+      const response = await api.get<Product>(`/products/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching product ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Создать новый продукт
+   */
+  createProduct: async (product: CreateProductDto): Promise<Product> => {
+    try {
+      const response = await api.post<Product>('/products', product);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Создать несколько продуктов одновременно
+   */
+  createProducts: async (products: CreateProductDto[]): Promise<Product[]> => {
+    try {
+      const response = await api.post<Product[]>('/products/batch', products);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating products:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Обновить существующий продукт
+   */
+  updateProduct: async (id: string, product: CreateProductDto): Promise<void> => {
+    try {
+      await api.put(`/products/${id}`, product);
+    } catch (error) {
+      console.error(`Error updating product ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Удалить продукт
+   */
+  deleteProduct: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/products/${id}`);
+    } catch (error) {
+      console.error(`Error deleting product ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Отметить продукт как использованный (переместить в архив)
+   */
+  markProductAsUsed: async (id: string): Promise<Product> => {
+    try {
+      const response = await api.post<Product>(`/products/${id}/mark-as-used`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error marking product ${id} as used:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Очистить историю (удалить все архивированные продукты)
+   */
+  clearHistory: async (): Promise<void> => {
+    try {
+      await api.delete('/products/history');
+    } catch (error) {
+      console.error('Error clearing history:', error);
+      throw error;
+    }
+  },
+};
+
+// Обработчик ошибок для всех запросов
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response) {
+      // Сервер ответил с кодом ошибки
+      console.error('API Error:', error.response.status, error.response.data);
+    } else if (error.request) {
+      // Запрос был отправлен, но ответа не получено
+      console.error('Network Error:', error.request);
+    } else {
+      // Что-то пошло не так при настройке запроса
+      console.error('Error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
