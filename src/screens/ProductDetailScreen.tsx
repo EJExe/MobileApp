@@ -22,8 +22,8 @@ const DollarSign = () => <Text>💰</Text>;
 interface ProductDetailScreenProps {
   product: Product;
   onBack: () => void;
-  onMarkAsUsed: (id: string) => void;
-  onDelete: (id: string) => void;
+  onMarkAsUsed: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   onRecipeClick: (recipe: Recipe) => void;
   
 }

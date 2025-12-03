@@ -11,7 +11,7 @@ export default function AddProduct() {
   const handleSave = async (productData: any) => {
     try {
       console.log('Начало сохранения продукта...');
-      addProduct(productData);
+      await addProduct(productData);
       console.log('Продукт сохранен, переход назад...');
       
       // Простая навигация назад

@@ -22,7 +22,7 @@ interface MainScreenProps {
   products: Product[];
   onAddProduct: () => void;
   onProductClick: (product: Product) => void;
-  onMarkAsUsed: (id: string) => void;
+  onMarkAsUsed: (id: string) => Promise<void>;
 }
 
 export function MainScreen({ products, onAddProduct, onProductClick, onMarkAsUsed }: MainScreenProps) {

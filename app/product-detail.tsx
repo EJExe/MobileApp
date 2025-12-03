@@ -12,14 +12,24 @@ export default function ProductDetail() {
   
   const product = JSON.parse(params.product as string) as Product;
 
-  const handleMarkAsUsed = (id: string) => {
-    markProductAsUsed(id);
-    router.replace('/main');
+  const handleMarkAsUsed = async (id: string) => {
+    try {
+      await markProductAsUsed(id);
+      router.replace('/main');
+    } catch (error) {
+      console.error('Error marking product as used:', error);
+      // Можно показать уведомление об ошибке пользователю
+    }
   };
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    router.replace('/main');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      router.replace('/main');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      // Можно показать уведомление об ошибке пользователю
+    }
   };
 
   const handleRecipeClick = (recipe: Recipe) => {
