@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +10,8 @@ import {
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { Product } from '../components/ProductForm';
+import { useApp } from '../context/AppContext';
+import api from '../services/api';
 
 // Иконки (замените на react-native-vector-icons)
 const TrendingDown = () => <Text>📉</Text>;
@@ -16,6 +20,37 @@ const DollarSign = () => <Text>💰</Text>;
 interface StatsScreenProps {
   products: Product[];
   archivedProducts: Product[];
+}
+
+interface StatPoint {
+  date: string; // ISO date (day or month start)
+  expired_count: number;
+  cost?: number;
+  consumed_count?: number;
+}
+
+interface CategoryStat {
+  category: string;
+  count: number;
+  expired_count?: number;
+}
+
+interface StatsSummary {
+  total_products: number;
+  expired_count: number;
+  expiring_7_days: number;
+  consumed_count: number;
+  discarded_count?: number;
+}
+
+interface StatsResponse {
+  userId: string;
+  from: string;
+  to: string;
+  granularity: 'day' | 'week' | 'month';
+  summary: StatsSummary;
+  series: StatPoint[];
+  byCategory?: CategoryStat[];
 }
 
 export function StatsScreen({ products, archivedProducts }: StatsScreenProps) {
@@ -27,68 +62,177 @@ export function StatsScreen({ products, archivedProducts }: StatsScreenProps) {
     return diffDays < 0 ? 'expired' : diffDays <= 3 ? 'expiring' : 'fresh';
   };
 
-  // Current month expired products and cost
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const expiredThisMonthProducts = archivedProducts.filter(product => {
-    if (!product.archivedDate) return false;
-    const archivedDate = new Date(product.archivedDate);
-    return archivedDate.getMonth() === currentMonth && 
-           archivedDate.getFullYear() === currentYear &&
-           product.archiveReason === 'expired';
+  const { isLoading: appLoading } = useApp();
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+
+  const buildDefaultRange = () => {
+    const to = new Date();
+    const from = new Date();
+    from.setMonth(from.getMonth() - 5);
+    from.setDate(1);
+    return { from: from.toISOString().slice(0,10), to: to.toISOString().slice(0,10) };
+  };
+
+  const loadStats = async (force = false) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const range = buildDefaultRange();
+      const res = await api.get<StatsResponse>('/stats', {
+        params: {
+          from: range.from,
+          to: range.to,
+          granularity: 'month'
+        }
+      });
+      setStats(res.data);
+    } catch (err: any) {
+      console.warn('Failed to load stats from server, falling back to local computation', err?.message || err);
+      setError('Не удалось загрузить статистику с сервера — используется локальная статистика');
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  // Expired products: either archived with 'expired' reason OR active products past expiration date
+  const isProductExpired = (expirationDate: string) => {
+    const today = new Date().getTime();
+    const expiry = new Date(expirationDate).getTime();
+    return expiry < today;
+  };
+
+  const getExpiredProducts = () => {
+    const archivedExpired = archivedProducts.filter(p => p.archiveReason === 'expired');
+    const activeExpired = products.filter(p => p.expirationDate && isProductExpired(p.expirationDate));
+    return [...archivedExpired, ...activeExpired];
+  };
+
+
+  // Все просроченные продукты (архив+активные)
+  const allExpiredProducts = getExpiredProducts();
+
+  // Текущий месяц
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  // Просроченные продукты только за текущий месяц
+  const expiredThisMonthList = allExpiredProducts.filter(product => {
+    const checkDate = product.archivedDate ? new Date(product.archivedDate) : (product.expirationDate ? new Date(product.expirationDate) : null);
+    if (!checkDate) return false;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (checkDate.getTime() >= today.getTime()) return false; // ignore today & future
+    return checkDate.getMonth() === currentMonth && checkDate.getFullYear() === currentYear;
   });
-  
-  const expiredThisMonth = expiredThisMonthProducts.length;
-  const expiredCostThisMonth = expiredThisMonthProducts.reduce((sum, product) => sum + (product.price || 0), 0);
-  
-  // Total cost of all expired products
-  const totalExpiredCost = archivedProducts
-    .filter(p => p.archiveReason === 'expired')
-    .reduce((sum, product) => sum + (product.price || 0), 0);
 
-  // Category breakdown of expired products
-  const expiredByCategory = archivedProducts
-    .filter(p => p.archiveReason === 'expired')
-    .reduce((acc, product) => {
-      acc[product.category] = (acc[product.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
 
-  const categoryData = Object.entries(expiredByCategory)
-    .map(([category, count]) => ({ category, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
+  // Когда сервер возвращает статистику, она может быть пустой или устаревшей.
+  // Если у сервера есть содержательная статистика (серия или ненулевой summary), используем её;
+  // иначе — используем локальные вычисления.
+  const serverHasUsefulSeries = Boolean(
+    stats && Array.isArray(stats.series) && stats.series.some(s => (s.expired_count || 0) > 0 || (s.cost || 0) > 0)
+  );
+
+  const serverHasUsefulSummary = Boolean(
+    stats && typeof stats.summary?.expired_count === 'number' && stats.summary.expired_count > 0
+  );
+
+  const serverHasUsefulStats = serverHasUsefulSeries || serverHasUsefulSummary;
+
+  // Количество за месяц — предпочитаем сервер только когда он действительно содержит данные
+  const expiredThisMonth = serverHasUsefulStats && typeof stats!.summary?.expired_count === 'number'
+    ? stats!.summary.expired_count
+    : expiredThisMonthList.length;
+
+  // Потери за месяц: если есть stats.summary.cost — используем, иначе считаем локально
+  // (добавьте поле cost в summary на сервере, если нужно)
+  const expiredCostThisMonth =
+    serverHasUsefulStats && typeof (stats!.summary as any)?.cost === 'number'
+      ? (stats!.summary as any).cost
+      : expiredThisMonthList.reduce((sum, p) => sum + (p.price || 0), 0);
+
+  // Общие потери за всё время
+  const totalExpiredCost = allExpiredProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+
+  const categoryData = stats && stats.byCategory && stats.byCategory.length > 0 ?
+    stats.byCategory.map(c => ({ category: c.category, count: c.count }))
+    : Object.entries(allExpiredProducts.reduce((acc, product) => {
+        acc[product.category] = (acc[product.category] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>))
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+
 
   // Trend data for last 6 months
-  const getTrendData = () => {
-    const months = [];
+  const getTrendData = (expiredList: typeof allExpiredProducts) => {
+    // Если есть stats.series и она не пуста — используем её
+    if (serverHasUsefulSeries && stats && Array.isArray(stats.series) && stats.series.length > 0) {
+      return stats.series.map(s => ({
+        month: new Date(s.date).toLocaleDateString('ru-RU', { month: 'short' }),
+        expired: s.expired_count || 0,
+        cost: s.cost || 0,
+      }));
+    }
+
+    // Fallback: строим по локальным данным
+    const monthsData: { month: string; expired: number; cost: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
-      date.setMonth(date.getMonth() - i);
+      date.setMonth(date.getMonth() - i, 1);
+      date.setHours(0,0,0,0);
       const month = date.getMonth();
       const year = date.getFullYear();
-      
-      const expiredProducts = archivedProducts.filter(product => {
-        if (!product.archivedDate) return false;
-        const archivedDate = new Date(product.archivedDate);
-        return archivedDate.getMonth() === month && 
-               archivedDate.getFullYear() === year &&
-               product.archiveReason === 'expired';
+
+      const startOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+      const startOfNextMonth = new Date(year, month + 1, 1, 0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      // Для каждого продукта: если есть archivedDate — используем её, иначе expirationDate
+      const expiredProducts = expiredList.filter(product => {
+        let checkDate: Date | null = null;
+        if (product.archivedDate) {
+          checkDate = new Date(product.archivedDate);
+        } else if (product.expirationDate) {
+          checkDate = new Date(product.expirationDate);
+        }
+        if (!checkDate) return false;
+        // Только если продукт реально просрочен (checkDate < сегодня)
+        if (checkDate.getTime() >= today.getTime()) return false;
+        return checkDate.getTime() >= startOfMonth.getTime() && checkDate.getTime() < startOfNextMonth.getTime();
       });
 
       const expiredCount = expiredProducts.length;
       const expiredCost = expiredProducts.reduce((sum, product) => sum + (product.price || 0), 0);
 
-      months.push({
+      monthsData.push({
         month: date.toLocaleDateString('ru-RU', { month: 'short' }),
         expired: expiredCount,
         cost: expiredCost
       });
     }
-    return months;
+    return monthsData;
   };
 
-  const trendData = getTrendData();
+  const trendData = getTrendData(allExpiredProducts);
+
+  if (__DEV__) {
+    console.log('[Stats] allExpiredProducts:', allExpiredProducts.length, allExpiredProducts);
+    console.log('[Stats] expiredThisMonthList:', expiredThisMonthList.length, expiredThisMonthList);
+    console.log('[Stats] trendData:', trendData);
+  }
 
   const pieColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECCA7', '#DDA0DD'];
 
@@ -104,16 +248,16 @@ export function StatsScreen({ products, archivedProducts }: StatsScreenProps) {
   const expiredTrendData = {
     labels: trendData.map(data => data.month),
     datasets: [{
-      data: trendData.map(data => data.expired),
+      data: trendData.map(data => data.expired).length > 0 ? trendData.map(data => data.expired) : [0],
       color: (opacity = 1) => `rgba(21, 101, 192, ${opacity})`,
       strokeWidth: 3,
     }],
   };
 
   const costTrendData = {
-    labels: trendData.map(data => data.month),
+    labels: trendData.map(data => data.month).length > 0 ? trendData.map(data => data.month) : [''],
     datasets: [{
-      data: trendData.map(data => data.cost),
+      data: trendData.map(data => data.cost).length > 0 ? trendData.map(data => data.cost) : [0],
       color: (opacity = 1) => `rgba(255, 109, 0, ${opacity})`,
       strokeWidth: 3,
     }],
@@ -143,15 +287,38 @@ export function StatsScreen({ products, archivedProducts }: StatsScreenProps) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={async () => {
+            setRefreshing(true);
+            await loadStats(true);
+            setRefreshing(false);
+          }} />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Статистика</Text>
           <Text style={styles.subtitle}>Анализ управления продуктами</Text>
+          {/* Local stats indicator removed per UX request */}
         </View>
 
+        { (appLoading || loading) && (
+          <View style={{ padding: 16 }}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) }
+
+        { error && (
+          <View style={{ padding: 16 }}>
+            <Text style={{ color: 'red' }}>{error}</Text>
+          </View>
+        ) }
+
         <View style={styles.content}>
-          {/* Monthly Summary */}
+          {/* Monthly Summary (текущий месяц) */}
           <View style={styles.summaryGrid}>
             <View style={styles.summaryCard}>
               <View style={styles.summaryContent}>
@@ -178,13 +345,13 @@ export function StatsScreen({ products, archivedProducts }: StatsScreenProps) {
             </View>
           </View>
 
-          {/* Total Expenses Card */}
+          {/* Total Expenses Card (всё время) */}
           <View style={styles.totalCard}>
             <View style={styles.totalContent}>
-              <Text style={styles.totalLabel}>Общие потери от просрочки</Text>
+              <Text style={styles.totalLabel}>Общие потери от просрочки (всё время)</Text>
               <Text style={styles.totalAmount}>{totalExpiredCost.toFixed(2)} ₽</Text>
               <Text style={styles.totalDescription}>
-                Всего просрочено: {archivedProducts.filter(p => p.archiveReason === 'expired').length} продуктов
+                Всего просрочено: {allExpiredProducts.length} продуктов
               </Text>
             </View>
           </View>

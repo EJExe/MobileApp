@@ -19,7 +19,7 @@ export interface Product {
   id: string;
   name: string;
   category: string;
-  purchaseDate: string;
+  purchaseDate?: string;
   expirationDate: string;
   price?: number;
   archivedDate?: string;
@@ -56,24 +56,27 @@ export function ProductForm({ onAddProduct }: ProductFormProps) {
   const [currentDateField, setCurrentDateField] = useState<'purchaseDate' | 'expirationDate' | null>(null);
 
   const handleSubmit = () => {
-    if (formData.name && formData.category && formData.expirationDate) {
-      const productData = {
-        ...formData,
-        price: formData.price ? parseFloat(formData.price) : undefined
-      };
-      onAddProduct(productData);
-      setFormData({
-        name: '',
-        category: '',
-        purchaseDate: '',
-        expirationDate: '',
-        price: ''
-      });
-      Alert.alert('Успех', 'Продукт успешно добавлен!');
-    } else {
-      Alert.alert('Ошибка', 'Пожалуйста, заполните все обязательные поля');
-    }
-  };
+  if (formData.name && formData.category && formData.expirationDate) {
+    const productData: Omit<Product, 'id'> = {
+      name: formData.name,
+      category: formData.category,
+      purchaseDate: formData.purchaseDate || undefined,  // Явно преобразуем пустую строку в undefined
+      expirationDate: formData.expirationDate,
+      price: formData.price ? parseFloat(formData.price) : undefined
+    };
+    onAddProduct(productData);
+    setFormData({
+      name: '',
+      category: '',
+      purchaseDate: '',
+      expirationDate: '',
+      price: ''
+    });
+    Alert.alert('Успех', 'Продукт успешно добавлен!');
+  } else {
+    Alert.alert('Ошибка', 'Пожалуйста, заполните все обязательные поля');
+  }
+};
 
   // Функция для открытия DatePicker
   const showDatePicker = (field: 'purchaseDate' | 'expirationDate') => {

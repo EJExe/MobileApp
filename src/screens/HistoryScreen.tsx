@@ -20,7 +20,7 @@ const Clock = () => <Text>⏰</Text>;
 interface HistoryScreenProps {
   products: Product[];
   archivedProducts: Product[];
-  onClearHistory: () => void;
+  onClearHistory: () => Promise<void>;
 }
 
 export function HistoryScreen({ products, archivedProducts, onClearHistory }: HistoryScreenProps) {

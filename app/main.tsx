@@ -8,6 +8,15 @@ export default function Main() {
   const { products, markProductAsUsed } = useApp();
   const router = useRouter();
 
+  const handleMarkAsUsed = async (id: string) => {
+    try {
+      await markProductAsUsed(id);
+    } catch (error) {
+      console.error('Error marking product as used:', error);
+      // Можно показать уведомление об ошибке пользователю
+    }
+  };
+
   return (
     <MainScreen
       products={products}
@@ -16,7 +25,7 @@ export default function Main() {
         pathname: '/product-detail',
         params: { product: JSON.stringify(product) }
       })}
-      onMarkAsUsed={markProductAsUsed}
+      onMarkAsUsed={handleMarkAsUsed}
     />
   );
 }
